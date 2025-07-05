@@ -126,21 +126,12 @@ firebase init
 
 ### 3. Set Environment Variables
 
-For **2nd Generation Functions**, set environment variables in your `.env` file:
-
 ```bash
-# Create .env file in functions directory
-cd functions
-echo 'OAUTH_SERVICE_URL=https://YOUR_OAUTH_SERVICE_URL/auth/google/refresh' > .env
+# Set the URL of your existing googleOauth service
+firebase functions:config:set oauth.service_url="https://YOUR_OAUTH_SERVICE_URL/auth/google/refresh"
 
 # Example:
-# echo 'OAUTH_SERVICE_URL=https://us-central1-your-project.cloudfunctions.net/googleOauth/auth/google/refresh' > .env
-```
-
-**Alternative: Set via Firebase CLI (for production)**
-```bash
-firebase functions:secrets:set OAUTH_SERVICE_URL
-# Enter your OAuth service URL when prompted
+# firebase functions:config:set oauth.service_url="https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh"
 ```
 
 ### 4. Deploy Functions
@@ -156,10 +147,8 @@ firebase deploy --only functions:getSubscriptionVideos
 ### 5. Local Development
 
 ```bash
-# Ensure .env file exists in functions directory with your OAuth service URL
-cd functions
-echo 'OAUTH_SERVICE_URL=https://YOUR_OAUTH_SERVICE_URL/auth/google/refresh' > .env
-cd ..
+# Download environment config for local development
+firebase functions:config:get > functions/.runtimeconfig.json
 
 # Start local emulator
 firebase emulators:start --only functions

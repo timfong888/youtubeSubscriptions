@@ -1,17 +1,8 @@
-const {onRequest} = require('firebase-functions/v2/https');
-const {setGlobalOptions} = require('firebase-functions/v2');
+const functions = require('firebase-functions');
 const cors = require('cors')({origin: true});
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 const {getSubscriptionVideos} = require('./youtubeSubscriptions');
-
-// Set global options for 2nd gen functions
-setGlobalOptions({
-  maxInstances: 10,
-  region: 'us-central1',
-  memory: '256MiB',
-  timeoutSeconds: 60,
-});
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -59,7 +50,8 @@ async function ensureValidToken(userId, tokens) {
     }
 
     // Token needs refresh - call the existing OAuth service
-    const oauthServiceUrl = process.env.OAUTH_SERVICE_URL ||
+    const oauthServiceUrl = functions.config().oauth?.service_url ||
+                           process.env.OAUTH_SERVICE_URL ||
                            'https://YOUR_OAUTH_SERVICE_URL/auth/google/refresh';
 
     const refreshResponse = await fetch(oauthServiceUrl, {
@@ -92,7 +84,7 @@ async function ensureValidToken(userId, tokens) {
  * Main HTTP function to get videos from user's YouTube subscriptions
  * Integrates with existing googleOauth service for token management
  */
-exports.getSubscriptionVideos = onRequest((req, res) => {
+exports.getSubscriptionVideos = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
     try {
       if (req.method !== 'POST') {
