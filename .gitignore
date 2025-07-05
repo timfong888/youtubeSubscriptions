@@ -72,6 +72,10 @@ typings/
 .env.test.local
 .env.production.local
 
+# Function-specific env files
+functions/.env
+functions/.env.local
+
 # Mac files
 .DS_Store
 
