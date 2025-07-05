@@ -2,84 +2,43 @@
 
 A Firebase Functions API for retrieving videos from a user's YouTube subscriptions using the YouTube Data API v3.
 
+**🔗 Integrates with existing [googleOauth](https://github.com/timfong888/googleOauth) service for authentication**
+
 ## Features
 
-- OAuth 2.0 authentication with Google/YouTube
+- **Seamless OAuth Integration** - Uses existing googleOauth service for token management
 - Retrieve videos from user's subscribed channels
 - Sort videos by upload date (most recent first)
 - Filter by date and exclude specific videos
 - Configurable number of results
+- Automatic token refresh via OAuth service
 - Comprehensive error handling
 
 ## API Endpoints
 
-### 1. Get OAuth Authorization URL
-**GET** `/getAuthUrl`
+### Prerequisites: OAuth Authentication
 
-Returns the Google OAuth authorization URL for users to grant access.
+**⚠️ Important:** Users must first authenticate via the [googleOauth service](https://github.com/timfong888/googleOauth) before using this API.
 
-**Response:**
-```json
-{
-  "success": true,
-  "authUrl": "https://accounts.google.com/oauth/authorize?...",
-  "message": "Visit this URL to authorize the application"
-}
-```
+1. **User Authentication Flow:**
+   - Direct users to your googleOauth service: `GET /auth/google?userId=USER_ID`
+   - Users complete OAuth flow and tokens are stored in Firestore
+   - Use the same `userId` in this API
 
-### 2. Exchange Authorization Code for Tokens
-**POST** `/exchangeToken`
-
-Exchange the authorization code received from OAuth callback for access tokens.
-
-**Request Body:**
-```json
-{
-  "code": "authorization_code_from_callback"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "tokens": {
-    "access_token": "...",
-    "refresh_token": "...",
-    "scope": "...",
-    "token_type": "Bearer",
-    "expiry_date": 1234567890
-  },
-  "message": "Tokens retrieved successfully"
-}
-```
-
-### 3. Refresh Access Token
-**POST** `/refreshToken`
-
-Refresh an expired access token using the refresh token.
-
-**Request Body:**
-```json
-{
-  "refreshToken": "your_refresh_token"
-}
-```
-
-### 4. Get Subscription Videos (Main API)
+### Main API Endpoint: Get Subscription Videos
 **POST** `/getSubscriptionVideos`
 
 Retrieve videos from the user's YouTube subscriptions.
 
 **Headers:**
 ```
-Authorization: Bearer YOUR_ACCESS_TOKEN
 Content-Type: application/json
 ```
 
 **Request Body:**
 ```json
 {
+  "userId": "user123",
   "maxResults": 25,
   "publishedAfter": "2023-01-01T00:00:00Z",
   "excludeList": ["videoId1", "videoId2"]
@@ -87,6 +46,7 @@ Content-Type: application/json
 ```
 
 **Parameters:**
+- `userId` (required): User ID that matches the one used in googleOauth service
 - `maxResults` (optional): Number of videos to return (1-100, default: 25)
 - `publishedAfter` (optional): ISO 8601 date string to filter videos published after this date
 - `excludeList` (optional): Array of video IDs to exclude from results
@@ -109,7 +69,8 @@ Content-Type: application/json
       }
     ],
     "count": 25,
-    "requestedCount": 25
+    "requestedCount": 25,
+    "userId": "user123"
   },
   "message": "Videos retrieved successfully"
 }
@@ -121,19 +82,18 @@ Content-Type: application/json
 
 1. **Node.js 18+** installed
 2. **Firebase CLI** installed (`npm install -g firebase-tools`)
-3. **Google Cloud Project** with YouTube Data API v3 enabled
-4. **OAuth 2.0 credentials** from Google Cloud Console
+3. **Existing [googleOauth service](https://github.com/timfong888/googleOauth) deployed and configured**
+4. **Same Firebase project** as your googleOauth service (for shared Firestore access)
+5. **YouTube Data API v3 enabled** in your Google Cloud Project
 
-### Google Cloud Setup
+### Integration Requirements
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable the YouTube Data API v3
-4. Create OAuth 2.0 credentials:
-   - Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
-   - Application type: "Web application"
-   - Add authorized redirect URIs (e.g., `http://localhost:3000/oauth/callback`)
-5. Note down the Client ID and Client Secret
+This service integrates with your existing googleOauth service by:
+- **Reading tokens from the same Firestore collection** (`users/{userId}/googleTokens`)
+- **Calling your OAuth refresh endpoint** when tokens expire
+- **Using the same user validation** system
+
+**⚠️ Important:** Ensure both services use the same Firebase project for shared Firestore access.
 
 ## Deployment
 
@@ -167,10 +127,11 @@ firebase init
 ### 3. Set Environment Variables
 
 ```bash
-# Set Google OAuth credentials as Firebase environment variables
-firebase functions:config:set google.client_id="your_client_id"
-firebase functions:config:set google.client_secret="your_client_secret"
-firebase functions:config:set google.redirect_uri="your_redirect_uri"
+# Set the URL of your existing googleOauth service
+firebase functions:config:set oauth.service_url="https://YOUR_OAUTH_SERVICE_URL"
+
+# Example:
+# firebase functions:config:set oauth.service_url="https://us-central1-your-project.cloudfunctions.net/googleOauth"
 ```
 
 ### 4. Deploy Functions
@@ -198,31 +159,43 @@ firebase emulators:start --only functions
 
 ## Testing
 
-### 1. Test OAuth Flow
+### 1. Authenticate User via googleOauth Service
+
+First, ensure a user is authenticated via your existing googleOauth service:
 
 ```bash
-# Get authorization URL
-curl -X GET http://localhost:5001/YOUR_PROJECT_ID/us-central1/getAuthUrl
+# Direct user to OAuth service (replace with your actual service URL)
+curl "https://YOUR_OAUTH_SERVICE_URL/auth/google?userId=testUser123"
 
-# Visit the returned URL, authorize, and get the code from callback
-# Exchange code for tokens
-curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/exchangeToken \
-  -H "Content-Type: application/json" \
-  -d '{"code": "YOUR_AUTHORIZATION_CODE"}'
+# User completes OAuth flow, tokens are stored in Firestore
 ```
 
-### 2. Test Main API
+### 2. Test YouTube Subscriptions API
 
 ```bash
-# Get subscription videos
+# Get subscription videos using the authenticated userId
 curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
+    "userId": "testUser123",
     "maxResults": 10,
     "publishedAfter": "2023-01-01T00:00:00Z",
     "excludeList": []
   }'
+```
+
+### 3. Test Error Scenarios
+
+```bash
+# Test with non-existent user
+curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "nonexistentUser", "maxResults": 5}'
+
+# Test without userId
+curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos \
+  -H "Content-Type: application/json" \
+  -d '{"maxResults": 5}'
 ```
 
 ## Error Handling

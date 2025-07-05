@@ -1,58 +1,39 @@
 /**
  * Example usage of the YouTube Subscriptions API
- * This file demonstrates how to use the API endpoints
+ * This file demonstrates how to use the API with existing googleOauth service
  */
 
 const axios = require('axios');
 
-// Replace with your Firebase project URL
-const BASE_URL = 'http://localhost:5001/YOUR_PROJECT_ID/us-central1';
+// Replace with your Firebase project URLs
+const YOUTUBE_API_URL = 'http://localhost:5001/YOUR_PROJECT_ID/us-central1';
+const OAUTH_SERVICE_URL = 'https://YOUR_OAUTH_SERVICE_URL'; // Your existing googleOauth service
 
 /**
- * Step 1: Get OAuth authorization URL
+ * Step 1: Direct user to existing OAuth service for authentication
+ * @param {string} userId - User ID to authenticate
  */
-async function getAuthorizationUrl() {
-  try {
-    const response = await axios.get(`${BASE_URL}/getAuthUrl`);
-    console.log('Authorization URL:', response.data.authUrl);
-    console.log('Visit this URL to authorize the application');
-    return response.data.authUrl;
-  } catch (error) {
-    console.error('Error getting auth URL:', error.response?.data || error.message);
-  }
+async function initiateOAuthFlow(userId) {
+  const authUrl = `${OAUTH_SERVICE_URL}/auth/google?userId=${userId}`;
+  console.log('Direct user to OAuth service:', authUrl);
+  console.log('User will complete OAuth flow and tokens will be stored in Firestore');
+  return authUrl;
 }
 
 /**
- * Step 2: Exchange authorization code for tokens
- * @param {string} authCode - Authorization code from OAuth callback
- */
-async function exchangeAuthCode(authCode) {
-  try {
-    const response = await axios.post(`${BASE_URL}/exchangeToken`, {
-      code: authCode
-    });
-    
-    console.log('Tokens received:', response.data.tokens);
-    return response.data.tokens;
-  } catch (error) {
-    console.error('Error exchanging auth code:', error.response?.data || error.message);
-  }
-}
-
-/**
- * Step 3: Get subscription videos
- * @param {string} accessToken - OAuth access token
+ * Step 2: Get subscription videos using userId (tokens managed automatically)
+ * @param {string} userId - User ID (same as used in OAuth service)
  * @param {Object} options - Query options
  */
-async function getSubscriptionVideos(accessToken, options = {}) {
+async function getSubscriptionVideos(userId, options = {}) {
   try {
-    const response = await axios.post(`${BASE_URL}/getSubscriptionVideos`, {
+    const response = await axios.post(`${YOUTUBE_API_URL}/getSubscriptionVideos`, {
+      userId: userId,
       maxResults: options.maxResults || 10,
       publishedAfter: options.publishedAfter,
       excludeList: options.excludeList || []
     }, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       }
     });
@@ -73,41 +54,36 @@ async function getSubscriptionVideos(accessToken, options = {}) {
 }
 
 /**
- * Example workflow
+ * Example workflow integrating with existing googleOauth service
  */
 async function exampleWorkflow() {
-  console.log('=== YouTube Subscriptions API Example ===\n');
-  
-  // Step 1: Get authorization URL
-  console.log('Step 1: Getting authorization URL...');
-  const authUrl = await getAuthorizationUrl();
-  
-  if (!authUrl) {
-    console.log('Failed to get authorization URL');
-    return;
-  }
-  
-  console.log('\nStep 2: Visit the URL above and authorize the application');
-  console.log('After authorization, you will get a code in the callback URL');
-  console.log('Use that code in the next step\n');
-  
-  // In a real application, you would:
-  // 1. Redirect user to authUrl
-  // 2. Handle the callback to get the authorization code
-  // 3. Exchange the code for tokens
-  // 4. Use the access token to make API calls
-  
-  // Example with dummy values (replace with real values):
+  console.log('=== YouTube Subscriptions API Example (with googleOauth integration) ===\n');
+
+  const userId = 'testUser123'; // Replace with actual user ID
+
+  // Step 1: Direct user to OAuth service for authentication
+  console.log('Step 1: Initiating OAuth flow via existing googleOauth service...');
+  const authUrl = await initiateOAuthFlow(userId);
+
+  console.log('\nStep 2: User visits OAuth URL and completes authentication');
+  console.log('Tokens are automatically stored in Firestore by googleOauth service\n');
+
+  console.log('Step 3: Once user is authenticated, get subscription videos...');
+
+  // Example usage (uncomment after user completes OAuth):
   /*
-  const authCode = 'YOUR_AUTH_CODE_FROM_CALLBACK';
-  const tokens = await exchangeAuthCode(authCode);
-  
-  if (tokens && tokens.access_token) {
-    console.log('Step 3: Getting subscription videos...');
-    await getSubscriptionVideos(tokens.access_token, {
+  try {
+    const videos = await getSubscriptionVideos(userId, {
       maxResults: 5,
       publishedAfter: '2023-01-01T00:00:00Z'
     });
+    console.log('Success! Retrieved videos for user:', userId);
+  } catch (error) {
+    if (error.response?.data?.authRequired) {
+      console.log('User needs to authenticate first via:', authUrl);
+    } else {
+      console.error('Error:', error.response?.data || error.message);
+    }
   }
   */
 }
@@ -118,7 +94,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  getAuthorizationUrl,
-  exchangeAuthCode,
+  initiateOAuthFlow,
   getSubscriptionVideos
 };

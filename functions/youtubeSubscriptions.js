@@ -1,5 +1,4 @@
 const {google} = require('googleapis');
-const {getAuthenticatedClient} = require('./googleOauth');
 
 /**
  * Get videos from user's YouTube subscriptions
@@ -18,8 +17,9 @@ async function getSubscriptionVideos(accessToken, options = {}) {
       excludeList = [],
     } = options;
 
-    // Get authenticated client
-    const auth = getAuthenticatedClient(accessToken);
+    // Create authenticated client directly with access token
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({access_token: accessToken});
     const youtube = google.youtube({version: 'v3', auth});
 
     // First, get user's subscriptions
