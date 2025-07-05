@@ -25,8 +25,13 @@ A Firebase Functions API for retrieving videos from a user's YouTube subscriptio
    - Users complete OAuth flow and tokens are stored in Firestore
    - Use the same `userId` in this API
 
-### Main API Endpoint: Get Subscription Videos
-**POST** `/getSubscriptionVideos`
+### Main API Endpoints
+
+**Health Check:**
+**GET** `/` - Service health check
+
+**Get Subscription Videos:**
+**POST** `/videos`
 
 Retrieve videos from the user's YouTube subscriptions.
 
@@ -124,37 +129,45 @@ firebase init
 # Edit .firebaserc and replace "your-firebase-project-id" with your actual project ID
 ```
 
-### 3. Set Environment Variables
+### 3. Set Environment Variables (2nd Generation)
+
+For **2nd Generation Functions**, use environment variables:
 
 ```bash
-# Set the URL of your existing googleOauth service
-firebase functions:config:set oauth.service_url="https://YOUR_OAUTH_SERVICE_URL/auth/google/refresh"
+# Create .env file in functions directory for local development
+cd functions
+echo 'OAUTH_SERVICE_URL=https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh' > .env
+cd ..
 
-# Example:
-# firebase functions:config:set oauth.service_url="https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh"
+# For production deployment, set via Firebase CLI:
+firebase functions:secrets:set OAUTH_SERVICE_URL
+# Enter: https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh
 ```
 
-### 4. Deploy Functions
+### 4. Deploy Functions (2nd Generation)
 
 ```bash
-# Deploy all functions
-firebase deploy --only functions
+# Deploy the 2nd generation function
+firebase deploy --only functions:youtubeSubscriptions
 
-# Or deploy specific function
-firebase deploy --only functions:getSubscriptionVideos
+# The function will be available at:
+# https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/youtubeSubscriptions
 ```
 
-### 5. Local Development
+### 5. Local Development (2nd Generation)
 
 ```bash
-# Download environment config for local development
-firebase functions:config:get > functions/.runtimeconfig.json
+# Ensure .env file exists in functions directory
+cd functions
+echo 'OAUTH_SERVICE_URL=https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh' > .env
+cd ..
 
 # Start local emulator
 firebase emulators:start --only functions
 
-# Functions will be available at:
-# http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos
+# Function endpoints will be available at:
+# http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/
+# http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/videos
 ```
 
 ## Testing
@@ -173,8 +186,11 @@ curl "https://YOUR_OAUTH_SERVICE_URL/auth/google?userId=testUser123"
 ### 2. Test YouTube Subscriptions API
 
 ```bash
+# Health check
+curl http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/
+
 # Get subscription videos using the authenticated userId
-curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos \
+curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/videos \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "testUser123",

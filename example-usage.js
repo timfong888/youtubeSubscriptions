@@ -6,7 +6,7 @@
 const axios = require('axios');
 
 // Replace with your Firebase project URLs
-const YOUTUBE_API_URL = 'http://localhost:5001/YOUR_PROJECT_ID/us-central1';
+const YOUTUBE_API_URL = 'http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions';
 const OAUTH_SERVICE_URL = 'https://YOUR_OAUTH_SERVICE_URL'; // Your existing googleOauth service
 
 /**
@@ -27,7 +27,7 @@ async function initiateOAuthFlow(userId) {
  */
 async function getSubscriptionVideos(userId, options = {}) {
   try {
-    const response = await axios.post(`${YOUTUBE_API_URL}/getSubscriptionVideos`, {
+    const response = await axios.post(`${YOUTUBE_API_URL}/videos`, {
       userId: userId,
       maxResults: options.maxResults || 10,
       publishedAfter: options.publishedAfter,
