@@ -1,5 +1,5 @@
-// index.js - Main entry point following 2nd gen pattern from googleOauth service
-const { onRequest } = require("firebase-functions/v2/https");
+// index.js - Stable v1 functions (compatible with existing infrastructure)
+const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const express = require('express');
 const cors = require('cors')({origin: true});
@@ -246,5 +246,5 @@ app.post('/videos', async (req, res) => {
   }
 });
 
-// Export the Express app as a 2nd generation Firebase Function
-exports.youtubeSubscriptions = onRequest(app);
+// Export the Express app as a 1st generation Firebase Function (stable)
+exports.youtubeSubscriptions = functions.https.onRequest(app);
