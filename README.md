@@ -157,7 +157,12 @@ This service integrates with your existing googleOauth service by:
 
 **⚠️ Important:** Ensure both services use the same Firebase project for shared Firestore access.
 
-## Deployment
+## 🚀 Critical Deployment Guide
+
+### Prerequisites
+- Node.js 18+ installed
+- Firebase CLI installed (`npm install -g firebase-tools`)
+- Firebase project with YouTube Data API v3 enabled
 
 ### 1. Clone and Setup
 
@@ -173,42 +178,92 @@ npm install
 cd ..
 ```
 
-### 2. Configure Firebase
+### 2. Configure Firebase Project
 
 ```bash
 # Login to Firebase
 firebase login
 
-# Initialize Firebase project (if not already done)
-firebase init
+# Create .firebaserc file (not in git - create locally)
+echo '{
+  "projects": {
+    "default": "your-project-id"
+  }
+}' > .firebaserc
 
-# Set your Firebase project ID in .firebaserc
-# Edit .firebaserc and replace "your-firebase-project-id" with your actual project ID
+# Replace "your-project-id" with your actual Firebase project ID
 ```
 
-### 3. Set Environment Variables (2nd Generation)
-
-For **2nd Generation Functions**, use environment variables:
+### 3. Update Dependencies (If Needed)
 
 ```bash
-# Create .env file in functions directory for local development
 cd functions
-echo 'OAUTH_SERVICE_URL=https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh' > .env
+# Update to latest firebase-functions if prompted
+npm install --save firebase-functions@latest
 cd ..
-
-# For production deployment, set via Firebase CLI:
-firebase functions:secrets:set OAUTH_SERVICE_URL
-# Enter: https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh
 ```
 
-### 4. Deploy Functions (2nd Generation)
+### 4. Deploy Function
 
 ```bash
-# Deploy the 2nd generation function
+# Deploy the function
 firebase deploy --only functions:youtubeSubscriptions
 
-# The function will be available at:
+# Function will be available at:
 # https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/youtubeSubscriptions
+```
+
+### 5. Verify Deployment
+
+```bash
+# Test health check
+curl https://us-central1-YOUR_PROJECT_ID.cloudfunctions.net/youtubeSubscriptions/
+
+# Expected response:
+# {"status":"OK","message":"YouTube Subscriptions API is running",...}
+```
+
+## 🎯 Critical API Usage
+
+### Live Endpoint
+```
+https://us-central1-sophia-db784.cloudfunctions.net/youtubeSubscriptions/videos
+```
+
+### Required Request Format
+```json
+{
+  "userId": "user123",
+  "accessToken": "ya29.a0AfH6SMC...",
+  "maxResults": 25,
+  "publishedBefore": "2023-01-01T00:00:00Z",
+  "excludeList": ["videoId1", "videoId2"]
+}
+```
+
+### Response Format
+```json
+{
+  "success": true,
+  "data": {
+    "videos": [
+      {
+        "videoId": "dQw4w9WgXcQ",
+        "title": "Video Title",
+        "description": "Video description...",
+        "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+        "duration": "PT3M33S",
+        "channelName": "Channel Name",
+        "publishedAt": "2023-01-15T10:30:00Z",
+        "language": "en"
+      }
+    ],
+    "count": 1,
+    "requestedCount": 25,
+    "userId": "user123"
+  },
+  "message": "Videos retrieved successfully"
+}
 ```
 
 ### 5. Local Development (2nd Generation)
