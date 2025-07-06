@@ -99,15 +99,13 @@ app.post('/videos', async (req, res) => {
     }
 
     // Use the accessToken provided directly from FlutterFlow
-    const validAccessToken = accessToken;
-
     const options = {
       maxResults,
       publishedAfter,
       excludeList,
     };
 
-    const videos = await getSubscriptionVideos(validAccessToken, options);
+    const videos = await getSubscriptionVideos(accessToken, options);
 
     console.log('YouTube subscriptions request completed:', {
       userId: userId,
