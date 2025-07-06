@@ -1,4 +1,4 @@
-// index.js - Stable v1 functions (compatible with existing infrastructure)
+// index.js - 2nd generation functions (supports Node.js 22)
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const express = require('express');
@@ -155,5 +155,6 @@ app.post('/videos', async (req, res) => {
   }
 });
 
-// Export the Express app as a 1st generation Firebase Function (stable)
-exports.youtubeSubscriptions = functions.https.onRequest(app);
+// Export the Express app as a 2nd generation Firebase Function (supports Node.js 22)
+const {onRequest} = require('firebase-functions/v2/https');
+exports.youtubeSubscriptions = onRequest(app);
