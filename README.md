@@ -81,6 +81,63 @@ Content-Type: application/json
 }
 ```
 
+## 📱 FlutterFlow Integration
+
+### API Endpoint Configuration
+
+**Create API Call** in FlutterFlow pointing to:
+`https://us-central1-sophia-db784.cloudfunctions.net/youtubeSubscriptions/videos`
+
+### Request Body Setup
+
+```json
+{
+  "userId": "[USER_ID]",
+  "accessToken": "[FROM_OAUTH_INTERCEPTOR]",
+  "maxResults": 25,
+  "publishedBefore": "2023-01-01T00:00:00Z",
+  "excludeList": []
+}
+```
+
+### 📅 Date Formatting for `publishedBefore`
+
+The `publishedBefore` parameter **must** be in YouTube Data API v3 compatible format (RFC 3339/ISO 8601).
+
+#### **Required Custom Format:** `yyyy-MM-ddTHH:mm:ssZ`
+
+#### **FlutterFlow Implementation Options:**
+
+**1. Current Time:**
+- Set from Variable → Global Properties → Current Time
+- Choose "Custom Format"
+- Enter: `yyyy-MM-ddTHH:mm:ssZ`
+- Results in: `2023-01-01T00:00:00Z`
+
+**2. Relative Dates (e.g., 30 days ago):**
+```dart
+// Custom function to calculate past date
+dateTimeFormat('yyyy-MM-ddTHH:mm:ssZ',
+  DateTime.now().subtract(Duration(days: 30)))
+```
+
+**3. User-Selected Dates:**
+```dart
+// From DateTime picker widget
+dateTimeFormat('yyyy-MM-ddTHH:mm:ssZ', selectedDate)
+```
+
+#### **Format Examples:**
+- `2023-01-01T00:00:00Z` - January 1st, 2023 at midnight UTC
+- `2023-12-31T23:59:59Z` - December 31st, 2023 at 11:59:59 PM UTC
+- `2023-06-15T14:30:00Z` - June 15th, 2023 at 2:30 PM UTC
+
+#### **⚠️ Important Notes:**
+- **Always use UTC timezone** (Z suffix)
+- **Include the 'T' separator** between date and time
+- **Use 24-hour format** for hours (HH)
+- **Zero-pad** all numeric values (MM, dd, HH, mm, ss)
+
 ## Setup and Configuration
 
 ### Prerequisites
@@ -189,29 +246,42 @@ curl "https://YOUR_OAUTH_SERVICE_URL/auth/google?userId=testUser123"
 # Health check
 curl http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/
 
-# Get subscription videos using the authenticated userId
+# Get subscription videos (requires valid accessToken)
 curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/videos \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "testUser123",
+    "accessToken": "ya29.a0AfH6SMC...",
     "maxResults": 10,
     "publishedBefore": "2023-01-01T00:00:00Z",
     "excludeList": []
   }'
 ```
 
+**Note:** The `publishedBefore` date must be in format `yyyy-MM-ddTHH:mm:ssZ` (RFC 3339/ISO 8601)
+
 ### 3. Test Error Scenarios
 
 ```bash
-# Test with non-existent user
-curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos \
+# Test without accessToken
+curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/videos \
   -H "Content-Type: application/json" \
-  -d '{"userId": "nonexistentUser", "maxResults": 5}'
+  -d '{"userId": "testUser123", "maxResults": 5}'
 
 # Test without userId
-curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/getSubscriptionVideos \
+curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/videos \
   -H "Content-Type: application/json" \
-  -d '{"maxResults": 5}'
+  -d '{"accessToken": "token", "maxResults": 5}'
+
+# Test with invalid date format
+curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscriptions/videos \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "testUser123",
+    "accessToken": "ya29.a0AfH6SMC...",
+    "publishedBefore": "2023-01-01",
+    "maxResults": 5
+  }'
 ```
 
 ## Error Handling
