@@ -5,7 +5,7 @@ const {google} = require('googleapis');
  * @param {string} accessToken - OAuth access token
  * @param {Object} options - Query options
  * @param {number} options.maxResults - Number of videos to return (default: 25)
- * @param {string} options.publishedAfter - Latest date filter (ISO 8601 format)
+ * @param {string} options.publishedBefore - Latest date filter (ISO 8601 format)
  * @param {Array<string>} options.excludeList - List of video IDs to exclude
  * @return {Promise<Array>} Array of video objects
  */
@@ -13,7 +13,7 @@ async function getSubscriptionVideos(accessToken, options = {}) {
   try {
     const {
       maxResults = 25,
-      publishedAfter,
+      publishedBefore,
       excludeList = [],
     } = options;
 
@@ -56,8 +56,8 @@ async function getSubscriptionVideos(accessToken, options = {}) {
             maxResults: Math.min(maxResults, 10), // Limit per channel
           };
 
-          if (publishedAfter) {
-            searchParams.publishedAfter = publishedAfter;
+          if (publishedBefore) {
+            searchParams.publishedBefore = publishedBefore;
           }
 
           const searchResponse = await youtube.search.list(searchParams);

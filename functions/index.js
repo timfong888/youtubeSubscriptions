@@ -52,7 +52,7 @@ app.post('/videos', async (req, res) => {
       userId,
       accessToken,
       maxResults = 25,
-      publishedAfter,
+      publishedBefore,
       excludeList = [],
     } = req.body;
 
@@ -79,13 +79,13 @@ app.post('/videos', async (req, res) => {
       });
     }
 
-    // Validate publishedAfter format if provided
-    if (publishedAfter) {
-      const date = new Date(publishedAfter);
+    // Validate publishedBefore format if provided
+    if (publishedBefore) {
+      const date = new Date(publishedBefore);
       if (isNaN(date.getTime())) {
         return res.status(400).json({
           success: false,
-          error: 'publishedAfter must be a valid ISO 8601 date string',
+          error: 'publishedBefore must be a valid ISO 8601 date string',
         });
       }
     }
@@ -101,7 +101,7 @@ app.post('/videos', async (req, res) => {
     // Use the accessToken provided directly from FlutterFlow
     const options = {
       maxResults,
-      publishedAfter,
+      publishedBefore,
       excludeList,
     };
 

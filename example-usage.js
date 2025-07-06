@@ -30,7 +30,7 @@ async function getSubscriptionVideos(userId, options = {}) {
     const response = await axios.post(`${YOUTUBE_API_URL}/videos`, {
       userId: userId,
       maxResults: options.maxResults || 10,
-      publishedAfter: options.publishedAfter,
+      publishedBefore: options.publishedBefore,
       excludeList: options.excludeList || []
     }, {
       headers: {
@@ -75,7 +75,7 @@ async function exampleWorkflow() {
   try {
     const videos = await getSubscriptionVideos(userId, {
       maxResults: 5,
-      publishedAfter: '2023-01-01T00:00:00Z'
+      publishedBefore: '2023-01-01T00:00:00Z'
     });
     console.log('Success! Retrieved videos for user:', userId);
   } catch (error) {

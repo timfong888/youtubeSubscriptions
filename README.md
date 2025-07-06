@@ -45,7 +45,7 @@ Content-Type: application/json
 {
   "userId": "user123",
   "maxResults": 25,
-  "publishedAfter": "2023-01-01T00:00:00Z",
+  "publishedBefore": "2023-01-01T00:00:00Z",
   "excludeList": ["videoId1", "videoId2"]
 }
 ```
@@ -53,7 +53,7 @@ Content-Type: application/json
 **Parameters:**
 - `userId` (required): User ID that matches the one used in googleOauth service
 - `maxResults` (optional): Number of videos to return (1-100, default: 25)
-- `publishedAfter` (optional): ISO 8601 date string to filter videos published after this date
+- `publishedBefore` (optional): ISO 8601 date string to filter videos published before this date
 - `excludeList` (optional): Array of video IDs to exclude from results
 
 **Response:**
@@ -195,7 +195,7 @@ curl -X POST http://localhost:5001/YOUR_PROJECT_ID/us-central1/youtubeSubscripti
   -d '{
     "userId": "testUser123",
     "maxResults": 10,
-    "publishedAfter": "2023-01-01T00:00:00Z",
+    "publishedBefore": "2023-01-01T00:00:00Z",
     "excludeList": []
   }'
 ```
