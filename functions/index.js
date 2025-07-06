@@ -15,79 +15,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-/**
- * Helper function to get user tokens from Firestore
- * Integrates with the existing googleOauth service token storage
- */
-async function getUserTokens(userId) {
-  try {
-    const db = admin.firestore();
-    const userDoc = await db.collection('users').doc(userId).get();
-
-    if (!userDoc.exists) {
-      throw new Error('User not found');
-    }
-
-    const userData = userDoc.data();
-    const tokens = userData.googleTokens;
-
-    if (!tokens || !tokens.accessToken) {
-      throw new Error('No OAuth tokens found for user');
-    }
-
-    return tokens;
-  } catch (error) {
-    console.error('Error getting user tokens:', error);
-    throw error;
-  }
-}
-
-/**
- * Helper function to check if token needs refresh and call OAuth service if needed
- */
-async function ensureValidToken(userId, tokens) {
-  try {
-    // Check if token is expired (with 5-minute buffer)
-    const now = new Date();
-    const expiryDate = new Date(tokens.expiryDate);
-    const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-    if (expiryDate.getTime() - now.getTime() > bufferTime) {
-      // Token is still valid
-      return tokens.accessToken;
-    }
-
-    // Token needs refresh - call the existing OAuth service
-    // For 2nd gen functions, use environment variables
-    const oauthServiceUrl = process.env.OAUTH_SERVICE_URL ||
-                           'https://us-central1-sophia-db784.cloudfunctions.net/googleOauth/auth/google/refresh';
-
-    const fetch = (await import('node-fetch')).default;
-    const refreshResponse = await fetch(oauthServiceUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: userId,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiryDate: tokens.expiryDate,
-      }),
-    });
-
-    if (!refreshResponse.ok) {
-      throw new Error('Failed to refresh token via OAuth service');
-    }
-
-    const refreshData = await refreshResponse.json();
-    return refreshData.accessToken;
-
-  } catch (error) {
-    console.error('Error ensuring valid token:', error);
-    throw new Error('Token validation/refresh failed. User may need to re-authenticate.');
-  }
-}
+// Simplified implementation - accessToken provided directly from FlutterFlow
 
 // Health check endpoint
 app.get('/', async (req, res) => {
@@ -119,19 +47,27 @@ app.post('/videos', async (req, res) => {
       userAgent: req.headers['user-agent']
     });
 
-    // Extract userId from request body (required for OAuth integration)
+    // Extract parameters from request body
     const {
       userId,
+      accessToken,
       maxResults = 25,
       publishedAfter,
       excludeList = [],
     } = req.body;
 
-    // Validate userId is provided
+    // Validate required parameters
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: 'userId is required (must match user in googleOauth service)',
+        error: 'userId is required',
+      });
+    }
+
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'accessToken is required',
       });
     }
 
@@ -162,11 +98,8 @@ app.post('/videos', async (req, res) => {
       });
     }
 
-    // Get user tokens from Firestore (same storage as googleOauth service)
-    const tokens = await getUserTokens(userId);
-
-    // Ensure token is valid, refresh if needed via OAuth service
-    const validAccessToken = await ensureValidToken(userId, tokens);
+    // Use the accessToken provided directly from FlutterFlow
+    const validAccessToken = accessToken;
 
     const options = {
       maxResults,
@@ -198,28 +131,6 @@ app.post('/videos', async (req, res) => {
     console.error('Error getting subscription videos:', error);
 
     // Handle specific error types
-    if (error.message.includes('User not found')) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found. Please ensure user exists in googleOauth service.',
-      });
-    }
-
-    if (error.message.includes('No OAuth tokens found')) {
-      return res.status(401).json({
-        success: false,
-        error: 'No OAuth tokens found. User needs to authenticate via googleOauth service first.',
-        authRequired: true,
-      });
-    }
-
-    if (error.message.includes('Token validation/refresh failed')) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token expired and refresh failed. User needs to re-authenticate.',
-        authRequired: true,
-      });
-    }
 
     if (error.message.includes('invalid_grant') || error.message.includes('unauthorized')) {
       return res.status(401).json({
