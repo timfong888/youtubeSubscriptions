@@ -112,7 +112,7 @@ async function getSubscriptionVideos(accessToken, options = {}) {
       videoId: video.id,
       title: video.snippet.title,
       description: video.snippet.description,
-      thumbnailUrl: video.snippet.thumbnails?.high?.url || 
+      thumbnaillUrl: video.snippet.thumbnails?.high?.url || 
                    video.snippet.thumbnails?.medium?.url || 
                    video.snippet.thumbnails?.default?.url,
       duration: video.contentDetails.duration,
