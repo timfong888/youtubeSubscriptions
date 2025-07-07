@@ -7,12 +7,14 @@ A Firebase Functions API for retrieving videos from a user's YouTube subscriptio
 ## Features
 
 - **Seamless OAuth Integration** - Uses existing googleOauth service for token management
+- **Quota Optimized** - 99% quota reduction with optimized endpoint
 - Retrieve videos from user's subscribed channels
 - Sort videos by upload date (most recent first)
 - Filter by date and exclude specific videos
-- Configurable number of results
+- Configurable number of results and channels
 - Automatic token refresh via OAuth service
 - Comprehensive error handling
+- Quota usage monitoring and logging
 
 ## API Endpoints
 
@@ -33,7 +35,8 @@ A Firebase Functions API for retrieving videos from a user's YouTube subscriptio
 **Get Subscription Videos:**
 **POST** `/videos`
 
-Retrieve videos from the user's YouTube subscriptions.
+🚀 **OPTIMIZED: Now uses Activities API with 99% quota reduction!**
+Retrieve videos from the user's YouTube subscriptions using efficient Activities API instead of expensive Search API.
 
 **Headers:**
 ```
@@ -45,6 +48,7 @@ Content-Type: application/json
 {
   "userId": "user123",
   "maxResults": 25,
+  "maxChannels": 15,
   "publishedBefore": "2023-01-01T00:00:00Z",
   "excludeList": ["videoId1", "videoId2"]
 }
@@ -80,6 +84,28 @@ Content-Type: application/json
   "message": "Videos retrieved successfully"
 }
 ```
+
+## 🚀 Quota Optimization
+
+### The Problem
+The original implementation consumed quota rapidly:
+- **5,000+ quota units per request** for users with 50 subscriptions
+- Daily quota of 10,000 units exhausted in just 2 requests!
+
+### The Solution
+**Main `/videos` endpoint now optimized with 99% quota reduction:**
+
+| Implementation | API Used | Quota per Channel | 50 Channels Total |
+|----------------|----------|-------------------|-------------------|
+| **Before** | search.list | 100 units | 5,000 units |
+| **After** | activities.list | 1 unit | 50 units |
+
+**Result: 99% quota savings!**
+
+### Usage
+- **All requests**: Use `/videos` endpoint (now optimized)
+- **Safety**: Set `maxChannels: 15` (default) to prevent quota exhaustion
+- **Heavy usage**: Increase `maxChannels` up to 50 as needed
 
 ## 📱 FlutterFlow Integration
 

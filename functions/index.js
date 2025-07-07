@@ -52,6 +52,7 @@ app.post('/videos', async (req, res) => {
       userId,
       accessToken,
       maxResults = 25,
+      maxChannels = 15, // Emergency quota protection
       publishedBefore,
       excludeList = [],
     } = req.body;
@@ -101,16 +102,18 @@ app.post('/videos', async (req, res) => {
     // Use the accessToken provided directly from FlutterFlow
     const options = {
       maxResults,
+      maxChannels,
       publishedBefore,
       excludeList,
     };
 
     const videos = await getSubscriptionVideos(accessToken, options);
 
-    console.log('YouTube subscriptions request completed:', {
+    console.log('YouTube subscriptions request completed (Activities API optimized):', {
       userId: userId,
       videoCount: videos.length,
       requestedCount: maxResults,
+      channelsProcessed: maxChannels,
       timestamp: new Date().toISOString()
     });
 
@@ -120,9 +123,11 @@ app.post('/videos', async (req, res) => {
         videos: videos,
         count: videos.length,
         requestedCount: maxResults,
+        channelsProcessed: maxChannels,
         userId: userId,
+        optimized: true,
       },
-      message: 'Videos retrieved successfully',
+      message: 'Videos retrieved successfully (Activities API - 99% quota savings)',
     });
 
   } catch (error) {

@@ -1,10 +1,12 @@
 const {google} = require('googleapis');
 
 /**
- * Get videos from user's YouTube subscriptions
+ * Get videos from user's YouTube subscriptions using Activities API (quota optimized)
+ * Uses activities.list (1 quota unit) instead of search.list (100 quota units) per channel
  * @param {string} accessToken - OAuth access token
  * @param {Object} options - Query options
  * @param {number} options.maxResults - Number of videos to return (default: 25)
+ * @param {number} options.maxChannels - Maximum number of channels to process (default: 15, max: 50)
  * @param {string} options.publishedBefore - Latest date filter (ISO 8601 format)
  * @param {Array<string>} options.excludeList - List of video IDs to exclude
  * @return {Promise<Array>} Array of video objects
@@ -13,9 +15,13 @@ async function getSubscriptionVideos(accessToken, options = {}) {
   try {
     const {
       maxResults = 25,
+      maxChannels = 15, // Emergency quota protection: limit channels processed
       publishedBefore,
       excludeList = [],
     } = options;
+
+    // Validate maxChannels to prevent quota abuse
+    const channelLimit = Math.min(Math.max(maxChannels, 1), 50);
 
     // Create authenticated client directly with access token
     const auth = new google.auth.OAuth2();
@@ -26,17 +32,25 @@ async function getSubscriptionVideos(accessToken, options = {}) {
     const subscriptionsResponse = await youtube.subscriptions.list({
       part: 'snippet',
       mine: true,
-      maxResults: 50, // Get up to 50 subscriptions
+      maxResults: Math.min(channelLimit * 2, 50), // Get more than needed to allow selection
     });
 
     if (!subscriptionsResponse.data.items || subscriptionsResponse.data.items.length === 0) {
       return [];
     }
 
-    // Extract channel IDs from subscriptions
-    const channelIds = subscriptionsResponse.data.items.map(
+    // Extract channel IDs from subscriptions and limit to prevent quota abuse
+    const allChannelIds = subscriptionsResponse.data.items.map(
       (subscription) => subscription.snippet.resourceId.channelId
     );
+
+    // QUOTA PROTECTION: Limit channels processed to prevent quota exhaustion
+    const channelIds = allChannelIds.slice(0, channelLimit);
+
+    console.log(`Processing ${channelIds.length} channels out of ${allChannelIds.length} subscriptions (quota protection)`);
+
+    // Track quota usage for monitoring
+    let quotaUsed = 1; // subscriptions.list = 1 quota unit
 
     // Get recent videos from subscribed channels
     const allVideos = [];
@@ -46,29 +60,45 @@ async function getSubscriptionVideos(accessToken, options = {}) {
     for (let i = 0; i < channelIds.length; i += batchSize) {
       const batch = channelIds.slice(i, i + batchSize);
       
-      const searchPromises = batch.map(async (channelId) => {
+      const activityPromises = batch.map(async (channelId) => {
         try {
-          const searchParams = {
-            part: 'snippet',
+          const activityParams = {
+            part: 'snippet,contentDetails',
             channelId: channelId,
-            type: 'video',
-            order: 'date',
             maxResults: Math.min(maxResults, 10), // Limit per channel
           };
 
           if (publishedBefore) {
-            searchParams.publishedBefore = publishedBefore;
+            activityParams.publishedBefore = publishedBefore;
           }
 
-          const searchResponse = await youtube.search.list(searchParams);
-          return searchResponse.data.items || [];
+          // Use activities.list instead of search.list (1 quota unit vs 100!)
+          const activitiesResponse = await youtube.activities.list(activityParams);
+          quotaUsed += 1; // activities.list = 1 quota unit (vs 100 for search.list!)
+
+          // Filter for upload activities only and convert to search-like format
+          const uploadActivities = (activitiesResponse.data.items || []).filter(
+            activity => activity.snippet.type === 'upload'
+          );
+
+          // Convert activities format to match expected video format
+          return uploadActivities.map(activity => ({
+            id: { videoId: activity.contentDetails.upload.videoId },
+            snippet: {
+              title: activity.snippet.title,
+              description: activity.snippet.description,
+              channelTitle: activity.snippet.channelTitle,
+              publishedAt: activity.snippet.publishedAt,
+              thumbnails: activity.snippet.thumbnails,
+            }
+          }));
         } catch (error) {
-          console.error(`Error fetching videos for channel ${channelId}:`, error);
+          console.error(`Error fetching activities for channel ${channelId}:`, error);
           return [];
         }
       });
 
-      const batchResults = await Promise.all(searchPromises);
+      const batchResults = await Promise.all(activityPromises);
       batchResults.forEach((videos) => {
         allVideos.push(...videos);
       });
@@ -99,6 +129,8 @@ async function getSubscriptionVideos(accessToken, options = {}) {
           id: batch.join(','),
         });
 
+        quotaUsed += 1; // videos.list = 1 quota unit per call
+
         if (videosResponse.data.items) {
           detailedVideos.push(...videosResponse.data.items);
         }
@@ -124,6 +156,10 @@ async function getSubscriptionVideos(accessToken, options = {}) {
 
     // Sort by published date (descending - most recent first)
     formattedVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+
+    // Log quota usage for monitoring
+    console.log(`OPTIMIZED quota usage: ${quotaUsed} units (channels: ${channelIds.length}, videos: ${formattedVideos.length})`);
+    console.log(`Using Activities API - saved ~${(channelIds.length * 99)} quota units vs Search API!`);
 
     // Return only the requested number of videos
     return formattedVideos.slice(0, maxResults);
